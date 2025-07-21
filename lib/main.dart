@@ -1,5 +1,5 @@
 import 'package:chat_app/firebase_options.dart';
-import 'package:chat_app/screens/auth.dart';
+import 'package:chat_app/screens/splash.dart';
 import 'package:chat_app/utilities/app_color.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
@@ -32,7 +32,7 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'Flutter Chat',
       theme: themeData,
-      home: const SignInScreen(),
+      home: const SplashScreen(),
     );
   }
 }

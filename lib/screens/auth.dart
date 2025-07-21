@@ -1,7 +1,9 @@
-import 'package:chat_app/screens/home/list_chat.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:chat_app/utilities/app_color.dart';
+import 'package:chat_app/widgets/flutter_text_field.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+
 
 final _firebase = FirebaseAuth.instance;
 
@@ -14,47 +16,81 @@ class SignInScreen extends StatefulWidget {
 
 class _SignInScreenState extends State<SignInScreen> {
   final _formKey = GlobalKey<FormState>();
+  String _enteredFName = '';
+  String _enteredLName = '';
   String _enteredEmail = '';
   String _enteredPwd = '';
   bool _isLogin = true;
+  bool _isSignInPressed = false;
 
   void _submit() async {
+    setState(() {
+      _isSignInPressed = true;
+    });
     if(_formKey.currentState!.validate()) {
       _formKey.currentState!.save();
 
-      if(_isLogin) {
-        // log in user
-        print(_enteredEmail);
-        print(_enteredPwd);
-        Navigator.pushReplacement(context,
-          MaterialPageRoute(builder: (_) => const ListChatScreen())
-        );
-      } else {
-        try {
-          final userCredential = await _firebase.createUserWithEmailAndPassword(email: _enteredEmail, password: _enteredPwd);
-          
-          print("user cr $userCredential");
-          setState(() {
-            _isLogin = !_isLogin;
-          });
-          
+      try {
+        if(_isLogin) {
+          // log in user
+          final userCredentials = await _firebase.signInWithEmailAndPassword(email: _enteredEmail, password: _enteredPwd);
+
           ScaffoldMessenger.of(context).clearSnackBars();
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Register account successfully.'))
+            SnackBar(content: Text('Sign In Successfully. Welcome back ${userCredentials.user?.displayName ?? userCredentials.user?.uid}'))
           );
-        } on FirebaseAuthException catch(e) {
-          ScaffoldMessenger.of(context).clearSnackBars();
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(e.message ?? 'Authentication Failed.'))
-          );
-          throw('Error: ${e.message}');
+          // Navigator.pushReplacement(context,
+          //   MaterialPageRoute(builder: (_) => const ChatScreen())
+          // );
+        } else {
+          final userCredentials = await _firebase.createUserWithEmailAndPassword(email: _enteredEmail, password: _enteredPwd);
+          await userCredentials.user?.updateDisplayName('$_enteredFName $_enteredLName');
+          // ScaffoldMessenger.of(context).clearSnackBars();
+          // ScaffoldMessenger.of(context).showSnackBar(
+          //   const SnackBar(content: Text('Register account successfully.'))
+          // );
         }
+      } on FirebaseAuthException catch(e) {
+        ScaffoldMessenger.of(context).clearSnackBars();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.message ?? 'Authentication Failed.'))
+        );
+        print('Error: ${e.message}');
       }
     }
   }
   
   @override
   Widget build(BuildContext context) {
+    final formNameRegister = <Widget>[
+      FlutterAppTextField(
+        validator: (value) {
+          if(value == null || value.trim().isEmpty) {
+            return 'Please input a valid First Name.';
+          }
+
+          return null;
+        },
+        onSaved: (value) {
+          _enteredFName = value!;
+        },
+        label: const Text('First Name'),
+      ),
+      FlutterAppTextField(
+        validator: (value) {
+          if(value == null || value.trim().isEmpty) {
+            return 'Please input a valid Last Name.';
+          }
+
+          return null;
+        },
+        onSaved: (value) {
+          _enteredLName = value!;
+        },
+        label: const Text('Last Name'),
+      ),
+    ];
+
     return Scaffold(
       backgroundColor: Theme.of(context).colorScheme.primary,
       body: Center(
@@ -63,7 +99,10 @@ class _SignInScreenState extends State<SignInScreen> {
             children: [
               SizedBox(
                 width: 200,
-                child: Image.asset('assets/appicon.png'),
+                child: Image.asset(
+                  'assets/appicon.png',
+                  fit: BoxFit.cover,
+                ),
               ),
               Card(
                 margin: const EdgeInsets.only(
@@ -78,10 +117,10 @@ class _SignInScreenState extends State<SignInScreen> {
                     key: _formKey,
                     child: Column(
                       children: [
-                        TextFormField(
+                        ...!_isLogin ? formNameRegister : [const SizedBox()],
+                        FlutterAppTextField(
                           keyboardType: TextInputType.emailAddress,
-                          maxLines: 1,
-                          autocorrect: false,
+                          autoCorrect: false,
                           validator: (value) {
                             if(value == null || value.trim().isEmpty || !value.contains('@')) {
                               return 'Please input a valid Email address.';
@@ -92,13 +131,10 @@ class _SignInScreenState extends State<SignInScreen> {
                           onSaved: (value) {
                             _enteredEmail = value!;
                           },
-                          decoration: const InputDecoration(
-                            label: Text('Email')
-                          ),
+                          label: const Text('Email')
                         ),
-                        TextFormField(
+                        FlutterAppTextField(
                           keyboardType: TextInputType.visiblePassword,
-                          maxLines: 1,
                           obscureText: true,
                           validator: (value) {
                             if(value == null || value.trim().isEmpty || value.trim().length < 6) {
@@ -110,17 +146,20 @@ class _SignInScreenState extends State<SignInScreen> {
                           onSaved: (value) {
                             _enteredPwd = value!;
                           },
-                          decoration: const InputDecoration(
-                            label: Text('Password')
-                          ),
+                          label: const Text('Password')
                         ),
                         const SizedBox(height: 30),
                         ElevatedButton(
-                          onPressed: _submit,
+                          onPressed: _isSignInPressed ? null : _submit,
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Theme.of(context).colorScheme.primaryContainer,
                           ),
-                          child: Text(
+                          child: _isSignInPressed ? const SizedBox(
+                            width: 45,
+                            child: CircularProgressIndicator(
+                              color: AppColor.secondary,
+                            ),
+                          ) : Text(
                             _isLogin ? 'Sign In' : 'Sign Up',
                             style: TextStyle(
                               color: Theme.of(context).colorScheme.onSurface
