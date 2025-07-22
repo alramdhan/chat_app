@@ -1,9 +1,13 @@
+import 'dart:io';
+
 import 'package:chat_app/utilities/app_color.dart';
-import 'package:chat_app/widgets/flutter_text_field.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
+import 'package:chat_app/widgets/flutter_text_field.dart';
+import 'package:chat_app/widgets/user_image_picker.dart';
 
 final _firebase = FirebaseAuth.instance;
 
@@ -16,21 +20,23 @@ class SignInScreen extends StatefulWidget {
 
 class _SignInScreenState extends State<SignInScreen> {
   final _formKey = GlobalKey<FormState>();
+  File? _selectedImage;
+  String _enteredUName = '';
   String _enteredFName = '';
-  String _enteredLName = '';
   String _enteredEmail = '';
   String _enteredPwd = '';
   bool _isLogin = true;
   bool _isSignInPressed = false;
 
   void _submit() async {
-    setState(() {
-      _isSignInPressed = true;
-    });
     if(_formKey.currentState!.validate()) {
       _formKey.currentState!.save();
 
       try {
+        setState(() {
+          _isSignInPressed = true;
+        });
+
         if(_isLogin) {
           // log in user
           final userCredentials = await _firebase.signInWithEmailAndPassword(email: _enteredEmail, password: _enteredPwd);
@@ -39,18 +45,38 @@ class _SignInScreenState extends State<SignInScreen> {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text('Sign In Successfully. Welcome back ${userCredentials.user?.displayName ?? userCredentials.user?.uid}'))
           );
-          // Navigator.pushReplacement(context,
-          //   MaterialPageRoute(builder: (_) => const ChatScreen())
-          // );
         } else {
+          if(_selectedImage == null) return;
+
           final userCredentials = await _firebase.createUserWithEmailAndPassword(email: _enteredEmail, password: _enteredPwd);
-          await userCredentials.user?.updateDisplayName('$_enteredFName $_enteredLName');
-          // ScaffoldMessenger.of(context).clearSnackBars();
-          // ScaffoldMessenger.of(context).showSnackBar(
-          //   const SnackBar(content: Text('Register account successfully.'))
-          // );
+          await userCredentials.user?.updateDisplayName(_enteredFName);
+
+          // final storageRef = FirebaseStorage.instance.ref();
+          // await storageRef.child('user_images')
+          //   .child('${userCredentials.user?.uid}.jpg')
+          //   .putFile(_selectedImage!);
+          // final imageURL = await storageRef.getDownloadURL();
+          // print("imageURL $imageURL");
+
+          await FirebaseFirestore.instance
+            .collection('users')
+            .doc(userCredentials.user?.uid)
+            .set({
+              "user_name": _enteredUName,
+              "full_name": _enteredFName,
+              "email": _enteredEmail,
+              "image_url": 'https://cdn-icons-png.flaticon.com/128/3135/3135715.png', // imageURL from firebase storage
+            });
+
+          ScaffoldMessenger.of(context).clearSnackBars();
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Account register successfully.'))
+          );
         }
       } on FirebaseAuthException catch(e) {
+        setState(() {
+          _isSignInPressed = false;
+        });
         ScaffoldMessenger.of(context).clearSnackBars();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(e.message ?? 'Authentication Failed.'))
@@ -63,10 +89,29 @@ class _SignInScreenState extends State<SignInScreen> {
   @override
   Widget build(BuildContext context) {
     final formNameRegister = <Widget>[
+      UserImagePicker(
+        onPickImage: (pickedImage) {
+          _selectedImage = pickedImage;
+        },
+      ),
+      FlutterAppTextField(
+        enableSuggestions: false,
+        validator: (value) {
+          if(value == null || value.trim().isEmpty || value.trim().length < 4) {
+            return 'Please enter at least 4 characters.';
+          }
+
+          return null;
+        },
+        onSaved: (value) {
+          _enteredUName = value!;
+        },
+        label: const Text('User Name'),
+      ),
       FlutterAppTextField(
         validator: (value) {
           if(value == null || value.trim().isEmpty) {
-            return 'Please input a valid First Name.';
+            return 'Please enter a valid Full Name.';
           }
 
           return null;
@@ -74,20 +119,7 @@ class _SignInScreenState extends State<SignInScreen> {
         onSaved: (value) {
           _enteredFName = value!;
         },
-        label: const Text('First Name'),
-      ),
-      FlutterAppTextField(
-        validator: (value) {
-          if(value == null || value.trim().isEmpty) {
-            return 'Please input a valid Last Name.';
-          }
-
-          return null;
-        },
-        onSaved: (value) {
-          _enteredLName = value!;
-        },
-        label: const Text('Last Name'),
+        label: const Text('Full Name'),
       ),
     ];
 
@@ -155,7 +187,7 @@ class _SignInScreenState extends State<SignInScreen> {
                             backgroundColor: Theme.of(context).colorScheme.primaryContainer,
                           ),
                           child: _isSignInPressed ? const SizedBox(
-                            width: 45,
+                            width: 38,
                             child: CircularProgressIndicator(
                               color: AppColor.secondary,
                             ),

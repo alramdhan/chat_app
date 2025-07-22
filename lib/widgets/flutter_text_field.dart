@@ -9,6 +9,7 @@ class FlutterAppTextField extends StatelessWidget {
     this.obscureText = false,
     this.validator,
     this.onSaved,
+    this.enableSuggestions = true,
     this.label,
   });
 
@@ -18,6 +19,7 @@ class FlutterAppTextField extends StatelessWidget {
   final bool obscureText;
   final String? Function(String?)? validator;
   final void Function(String?)? onSaved;
+  final bool enableSuggestions;
   final Widget? label;
 
   @override
@@ -29,6 +31,7 @@ class FlutterAppTextField extends StatelessWidget {
       validator: validator,
       onSaved: onSaved,
       obscureText: obscureText,
+      enableSuggestions: enableSuggestions,
       decoration: InputDecoration(
         label: label,
       ),
